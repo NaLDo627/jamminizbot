@@ -1,7 +1,5 @@
 import discord
 from translate import translate_message
-from discord.ext import commands
-from discord.utils import get
 
 
 async def notice_internal(ctx, channel_to_send, announcement):

@@ -1,22 +1,38 @@
 import discord
+import asyncio
 from discord.ext import commands
 from discord.utils import get
 from poll import poll_internal
 from translate import translate_internal
 from help import CustomHelpCommand
 from notice import notice_internal
+from croniter import croniter
+from datetime import datetime
 import os
 
 intents = discord.Intents().all()
-
-# Change only the no_category default string
-help_command = commands.DefaultHelpCommand(no_category='Commands')
-
+help_command = CustomHelpCommand()
 client = commands.Bot(command_prefix='!', intents=intents, help_command=help_command)
-client.help_command = CustomHelpCommand()
+
+
+async def send_scheduled_message(channel, message, cron_schedule):
+    while True:
+        # Get the next scheduled time
+        next_time = croniter(cron_schedule, datetime.now()).get_next(datetime)
+
+        # Sleep until the next scheduled time
+        await asyncio.sleep((next_time - datetime.now()).total_seconds())
+
+        # Send the scheduled message
+        await channel.send(message)
+
 
 @client.event
 async def on_ready():
+    cron_schedule = '* * * * *'
+    message = 'Test Message!'
+    channel = client.get_channel(1078302379188957235)
+    client.loop.create_task(send_scheduled_message(channel, message, cron_schedule))
     print(f'Logged in as {client.user.name}')
 
 
@@ -102,7 +118,6 @@ async def on_reaction_add(reaction, user):
 
         poll_result += f"\nMembers who reacted: {user_mentions}"
         await message.channel.send(poll_result)
-
 
 discord_bot_token = os.environ.get('DISCORD_BOT_TOKEN')
 client.run(discord_bot_token)
