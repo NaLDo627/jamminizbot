@@ -1,13 +1,20 @@
+import logging
+
 import discord
 from discord.ext import commands
 from discord.utils import get
 from poll import poll_internal
+from translate import translate_internal
+from help import CustomHelpCommand
 import os
 
 intents = discord.Intents().all()
 
-client = commands.Bot(command_prefix='!', intents=intents)
+# Change only the no_category default string
+help_command = commands.DefaultHelpCommand(no_category='Commands')
 
+client = commands.Bot(command_prefix='!', intents=intents, help_command=help_command)
+client.help_command = CustomHelpCommand()
 
 @client.event
 async def on_ready():
@@ -15,12 +22,51 @@ async def on_ready():
 
 
 @client.command()
+@commands.has_role('Manager')
 async def poll(ctx):
+    """Make poll (manager role only)"""
     scrim_schedule = get(ctx.guild.channels, name="scrim-schedule")
     if scrim_schedule is not None:
         await poll_internal(ctx, scrim_schedule)
     else:
         await poll_internal(ctx, ctx.channel)
+
+
+@client.command()
+async def translateabove(ctx):
+    """Translate the latest message
+
+    It will translate if input language is:
+     Korean => Japanese and English,
+     Japanese => Korean and English,
+     English => Japanese and Korean
+
+    *Note: It will not translate bot's message or command message(starting with prefix '!')
+    """
+    channel = ctx.channel
+    messages = [message async for message in channel.history(limit=2)]
+    latest_message = messages[1]
+    if latest_message.author == client.user:
+        await ctx.send("Sorry, bot's message will not be translated.")
+        return
+    elif latest_message.content.startswith("!"):
+        await ctx.send("Sorry, command message of bot will not be translated.")
+        return
+    await translate_internal(ctx, latest_message.author, latest_message.content)
+
+
+@client.command()
+async def translate(ctx, *, text):
+    """Translate your message
+
+    <text>: the message to be translated
+
+    It will translate if input language is:
+     Korean => Japanese and English,
+     Japanese => Korean and English,
+     English => Japanese and Korean
+    """
+    await translate_internal(ctx, ctx.author, text)
 
 
 @client.event
