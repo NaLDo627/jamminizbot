@@ -1,11 +1,10 @@
-import logging
-
 import discord
 from discord.ext import commands
 from discord.utils import get
 from poll import poll_internal
 from translate import translate_internal
 from help import CustomHelpCommand
+from notice import notice_internal
 import os
 
 intents = discord.Intents().all()
@@ -24,17 +23,35 @@ async def on_ready():
 @client.command()
 @commands.has_role('Manager')
 async def poll(ctx):
-    """Make poll (manager role only)"""
-    scrim_schedule = get(ctx.guild.channels, name="scrim-schedule")
-    if scrim_schedule is not None:
-        await poll_internal(ctx, scrim_schedule)
+    """**Make poll (manager role only)**"""
+    scrim_schedule_channel = get(ctx.guild.channels, name="scrim-schedule")
+    if scrim_schedule_channel is not None:
+        await poll_internal(ctx, scrim_schedule_channel)
     else:
         await poll_internal(ctx, ctx.channel)
 
 
 @client.command()
+@commands.has_role('Manager')
+async def notice(ctx, *, announcement):
+    """**Announce to notice channel (manager role only)**
+
+    <announcement>: the message to be announced
+
+    It will announce to notice channel(or here if not exist) with the @everyone mention.
+    It also translate your announcement to each language like `!translate` command.
+    See also `!help translate`
+    """
+    notice_channel = get(ctx.guild.channels, name="notice")
+    if notice_channel is not None:
+        await notice_internal(ctx, notice_channel, announcement)
+    else:
+        await notice_internal(ctx, ctx.channel, announcement)
+
+
+@client.command()
 async def translateabove(ctx):
-    """Translate the latest message
+    """**Translate the latest message**
 
     It will translate if input language is:
      Korean => Japanese and English,
@@ -57,7 +74,7 @@ async def translateabove(ctx):
 
 @client.command()
 async def translate(ctx, *, text):
-    """Translate your message
+    """**Translate your message**
 
     <text>: the message to be translated
 
