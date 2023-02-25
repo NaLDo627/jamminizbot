@@ -1,0 +1,58 @@
+name: Deploy to Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'warning'
+      tags:
+        description: 'Test scenario tags'
+
+env:
+  IMAGE_NAME: jamminiz
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        env:
+          DOCKER_REPO: ${{ secrets.DOCKER_USERNAME }}/${{ env.API_IMAGE }}
+          VERSION: ${{ github.sha }}
+        run: |
+          docker build -t $DOCKER_REPO:$VERSION .
+          docker push $DOCKER_REPO:$VERSION
+
+      - name: Configure SSH key
+        uses: webfactory/ssh-agent@v0.5.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to Server
+        env:
+          DOCKER_COMPOSE_FILE: docker-compose.yml
+          DOCKER_REPO: ${{ secrets.DOCKER_USERNAME }}/${{ env.API_IMAGE }}
+          VERSION: ${{ github.sha }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: |
+          # Replace secrets in docker-compose.yml file
+          sed -i 's/$VERSION/'"$VERSION"'/g' $DOCKER_COMPOSE_FILE
+          sed -i 's/$DISCORD_BOT_TOKEN/'"$DISCORD_BOT_TOKEN"'/g' $DOCKER_COMPOSE_FILE
+          
+          # Copy docker-compose.yml file to the remote server
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P ${{ secrets.SSH_PORT }} $DOCKER_COMPOSE_FILE ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/path/to/remote/docker-compose.yml
+          
+          # SSH to the remote server and deploy the Docker container using Docker Compose
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "cd /path/to/remote && docker-compose pull $DOCKER_REPO:$VERSION && docker-compose up -d"

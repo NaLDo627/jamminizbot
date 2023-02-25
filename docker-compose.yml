@@ -1,0 +1,8 @@
+version: '3'
+services:
+  my_bot:
+    image: jamminiz:$VERSION
+    container_name: jamminiz
+    restart: always
+    environment:
+      - DISCORD_BOT_TOKEN=$DISCORD_BOT_TOKEN
