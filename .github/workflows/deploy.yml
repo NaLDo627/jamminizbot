@@ -29,7 +29,7 @@ jobs:
 
       - name: Build and push Docker image
         env:
-          DOCKER_REPO: docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.API_IMAGE }}
+          DOCKER_REPO: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
           VERSION: ${{ github.sha }}
         run: |
           docker build -t $DOCKER_REPO:$VERSION .
@@ -43,7 +43,7 @@ jobs:
       - name: Deploy to Server
         env:
           DOCKER_COMPOSE_FILE: docker-compose.yml
-          DOCKER_REPO: docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.API_IMAGE }}
+          DOCKER_REPO: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
           VERSION: ${{ github.sha }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
         run: |
