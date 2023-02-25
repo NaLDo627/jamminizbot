@@ -1,7 +1,7 @@
 version: '3'
 services:
-  my_bot:
-    image: docker.io/jamminiz:$VERSION
+  jamminiz_bot:
+    image: docker.io/$DOCKER_USERNAME/jamminiz:$VERSION
     container_name: jamminiz
     restart: always
     environment:

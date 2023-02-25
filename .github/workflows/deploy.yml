@@ -50,9 +50,10 @@ jobs:
           # Replace secrets in docker-compose.yml file
           sed -i 's/$VERSION/'"$VERSION"'/g' $DOCKER_COMPOSE_FILE
           sed -i 's/$DISCORD_BOT_TOKEN/'"$DISCORD_BOT_TOKEN"'/g' $DOCKER_COMPOSE_FILE
+          sed -i 's/$DOCKER_USERNAME/'"${{ secrets.DOCKER_USERNAME }}"'/g' $DOCKER_COMPOSE_FILE
           
           # Copy docker-compose.yml file to the remote server
           scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P ${{ secrets.SSH_PORT }} $DOCKER_COMPOSE_FILE ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ vars.PATH_TO_REMOTE }}/docker-compose.yml
           
           # SSH to the remote server and deploy the Docker container using Docker Compose
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "cd ${{ vars.PATH_TO_REMOTE }} && docker-compose pull $DOCKER_REPO:$VERSION && docker-compose down && docker-compose up -d"
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "cd ${{ vars.PATH_TO_REMOTE }} && docker-compose pull jamminiz_bot && docker-compose down && docker-compose up -d"
