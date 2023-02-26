@@ -7,4 +7,4 @@ services:
     environment:
       - DISCORD_BOT_TOKEN=$DISCORD_BOT_TOKEN
     volumes:
-      - $PATH_TO_REMOTE/db:/app/db
+      - $PATH_TO_REMOTE_DB:/app/db
