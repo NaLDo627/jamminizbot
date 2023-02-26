@@ -12,14 +12,14 @@ class CustomHelpCommand(commands.MinimalHelpCommand):
     def get_ending_note(self):
         return "Type !help command for more info on a command."
 
-    def format_command(self, command):
+    async def format_command(self, command):
         async def predicate(cmd) -> bool:
             try:
                 return await cmd.can_run(self.context)
             except CommandError:
                 return False
 
-        if command.hidden or not command.can_run(self.context):
+        if command.hidden or not await command.can_run(self.context):
             return ''
 
         signature = self.get_command_signature(command)
@@ -31,12 +31,12 @@ class CustomHelpCommand(commands.MinimalHelpCommand):
         for cog, commands in mapping.items():
             if cog is None:
                 filtered = await self.filter_commands(commands, sort=True)
-                command_list = [self.format_command(c) for c in filtered]
+                command_list = [await self.format_command(c) for c in filtered]
                 if command_list:
                     help_embed.description += f"{''.join(command_list)}"
             else:
                 filtered = await self.filter_commands(commands, sort=True)
-                command_list = [self.format_command(c) for c in filtered]
+                command_list = [await self.format_command(c) for c in filtered]
                 if command_list:
                     help_embed.add_field(name=cog.qualified_name, value=f"{''.join(command_list)}", inline=False)
 
