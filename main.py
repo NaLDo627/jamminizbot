@@ -1,50 +1,73 @@
 import discord
-import asyncio
 from discord.ext import commands
 from discord.utils import get
-from poll import poll_internal
+from poll import schedule_poll
 from translate import translate_internal
 from help import CustomHelpCommand
 from notice import notice_internal
-from croniter import croniter
-from datetime import datetime
 import os
+import json
 
 intents = discord.Intents().all()
 help_command = CustomHelpCommand()
 client = commands.Bot(command_prefix='!', intents=intents, help_command=help_command)
 
-
-async def send_scheduled_message(channel, message, cron_schedule):
-    while True:
-        # Get the next scheduled time
-        next_time = croniter(cron_schedule, datetime.now()).get_next(datetime)
-
-        # Sleep until the next scheduled time
-        await asyncio.sleep((next_time - datetime.now()).total_seconds())
-
-        # Send the scheduled message
-        await channel.send(message)
+scheduled_tasks = {}
+CRON_EXPRESSION_9AM_MONDAY = '0 9 * * 1'
 
 
 @client.event
 async def on_ready():
-    cron_schedule = '* * * * *'
-    message = 'Test Message!'
-    channel = client.get_channel(1078302379188957235)
-    client.loop.create_task(send_scheduled_message(channel, message, cron_schedule))
     print(f'Logged in as {client.user.name}')
+    await client.change_presence(activity=discord.Game(name="!help"))
+
+    if not os.path.isfile('schedules.txt'):
+        return
+
+    with open('schedules.txt', 'r') as f:
+        keys = json.load(f)
+        for key in keys:
+            scrim_schedule_channel = client.get_channel(int(key))
+            task = client.loop.create_task(schedule_poll(scrim_schedule_channel, CRON_EXPRESSION_9AM_MONDAY))
+            scheduled_tasks[scrim_schedule_channel.id] = task
 
 
 @client.command()
 @commands.has_role('Manager')
-async def poll(ctx):
-    """**Make poll (manager role only)**"""
+async def schedulepoll(ctx):
+    """**Register poll at 9am Monday (manager role only)**"""
     scrim_schedule_channel = get(ctx.guild.channels, name="scrim-schedule")
-    if scrim_schedule_channel is not None:
-        await poll_internal(ctx, scrim_schedule_channel)
-    else:
-        await poll_internal(ctx, ctx.channel)
+    if scrim_schedule_channel is None:
+        scrim_schedule_channel = ctx.channel
+
+    if scrim_schedule_channel.id in scheduled_tasks:
+        await ctx.send("There is already registered schedule.")
+        return
+    task = client.loop.create_task(schedule_poll(scrim_schedule_channel, CRON_EXPRESSION_9AM_MONDAY))
+    scheduled_tasks[scrim_schedule_channel.id] = task
+    with open('schedules.txt', 'w') as f:
+        json.dump(list(scheduled_tasks.keys()), f)
+
+    await ctx.send(f"Poll scheduled. I will send a poll to `#{scrim_schedule_channel.name}` channel.")
+
+
+@client.command()
+@commands.has_role('Manager')
+async def cancelpoll(ctx):
+    """**Unregister poll at 9am Monday (manager role only)**"""
+    scrim_schedule_channel = get(ctx.guild.channels, name="scrim-schedule")
+    if scrim_schedule_channel is None:
+        scrim_schedule_channel = ctx.channel
+    if scrim_schedule_channel.id not in scheduled_tasks:
+        await ctx.send("There is no registered schedule.")
+        return
+
+    scheduled_tasks[scrim_schedule_channel.id].cancel()
+    del scheduled_tasks[scrim_schedule_channel.id]
+    with open('schedules.txt', 'w') as f:
+        json.dump(list(scheduled_tasks.keys()), f)
+
+    await ctx.send(f"Poll canceled. Poll will no longer sent to `#{scrim_schedule_channel.name}` channel.")
 
 
 @client.command()
@@ -103,7 +126,11 @@ async def translate(ctx, *, text):
 
 
 @client.event
-async def on_reaction_add(reaction, user):
+async def on_raw_reaction_add(payload):
+    message = await client.get_channel(payload.channel_id).fetch_message(payload.message_id)
+    emoji = payload.emoji
+    reaction = get(message.reactions, emoji=emoji)
+
     if reaction.count >= 6:
         message = reaction.message
         users = [user async for user in reaction.users()]
@@ -113,7 +140,7 @@ async def on_reaction_add(reaction, user):
         poll_result = f"**{reaction.count-1}** Members are voted! : {reaction.emoji}"
         if reaction.count == 6:
             poll_result += "\nLet's go get a scrim."
-        elif reaction.count == 11:
+        elif reaction.count == 9:
             poll_result = f"\nMaybe we can start a civil war."
 
         poll_result += f"\nMembers who reacted: {user_mentions}"
