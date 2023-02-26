@@ -21,10 +21,10 @@ async def on_ready():
     print(f'Logged in as {client.user.name}')
     await client.change_presence(activity=discord.Game(name="!help"))
 
-    if not os.path.isfile('schedules.txt'):
+    if not os.path.isfile('db/schedules.txt'):
         return
 
-    with open('schedules.txt', 'r') as f:
+    with open('db/schedules.txt', 'r') as f:
         keys = json.load(f)
         for key in keys:
             scrim_schedule_channel = client.get_channel(int(key))
@@ -45,7 +45,10 @@ async def schedulepoll(ctx):
         return
     task = client.loop.create_task(schedule_poll(scrim_schedule_channel, CRON_EXPRESSION_9AM_MONDAY))
     scheduled_tasks[scrim_schedule_channel.id] = task
-    with open('schedules.txt', 'w') as f:
+
+    if not os.path.exists("db"):
+        os.makedirs("db")
+    with open('db/schedules.txt', 'w') as f:
         json.dump(list(scheduled_tasks.keys()), f)
 
     await ctx.send(f"Poll scheduled. I will send a poll to `#{scrim_schedule_channel.name}` channel.")
@@ -64,7 +67,10 @@ async def cancelpoll(ctx):
 
     scheduled_tasks[scrim_schedule_channel.id].cancel()
     del scheduled_tasks[scrim_schedule_channel.id]
-    with open('schedules.txt', 'w') as f:
+
+    if not os.path.exists("db"):
+        os.makedirs("db")
+    with open('db/schedules.txt', 'w') as f:
         json.dump(list(scheduled_tasks.keys()), f)
 
     await ctx.send(f"Poll canceled. Poll will no longer sent to `#{scrim_schedule_channel.name}` channel.")

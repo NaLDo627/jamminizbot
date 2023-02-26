@@ -51,6 +51,7 @@ jobs:
           sed -i 's/$VERSION/'"$VERSION"'/g' $DOCKER_COMPOSE_FILE
           sed -i 's/$DISCORD_BOT_TOKEN/'"$DISCORD_BOT_TOKEN"'/g' $DOCKER_COMPOSE_FILE
           sed -i 's/$DOCKER_USERNAME/'"${{ secrets.DOCKER_USERNAME }}"'/g' $DOCKER_COMPOSE_FILE
+          sed -i 's/PATH_TO_REMOTE_DB/'"${{ vars.PATH_TO_REMOTE }}/db"'/g' $DOCKER_COMPOSE_FILE
           
           # Copy docker-compose.yml file to the remote server
           scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P ${{ secrets.SSH_PORT }} $DOCKER_COMPOSE_FILE ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ vars.PATH_TO_REMOTE }}/docker-compose.yml
