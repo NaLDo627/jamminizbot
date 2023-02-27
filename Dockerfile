@@ -1,4 +1,4 @@
-# Use the official Python image as the base image
+# Use the base image as the base image
 FROM docker.io/hygoogi/jamminiz-base:latest
 
 # Set the working directory inside the container
