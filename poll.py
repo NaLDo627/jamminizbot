@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from pytz import timezone
 import discord
 from discord.utils import get
 from croniter import croniter
@@ -7,12 +8,13 @@ from datetime import datetime
 
 
 async def schedule_poll(channel_to_send, cron_schedule):
+    tz = timezone('Asia/Seoul')
     while True:
         # Get the next scheduled time
-        next_time = croniter(cron_schedule, datetime.now()).get_next(datetime)
+        next_time = croniter(cron_schedule, datetime.now(tz)).get_next(datetime)
 
         # Sleep until the next scheduled time
-        await asyncio.sleep((next_time - datetime.now()).total_seconds())
+        await asyncio.sleep((next_time - datetime.now(tz)).total_seconds())
 
         # Send the scheduled message
         await poll_internal(channel_to_send)
