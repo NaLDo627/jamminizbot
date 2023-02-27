@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord.utils import get
-from poll import schedule_poll
+from poll import schedule_poll, poll_internal
 from translate import translate_internal
 from help import CustomHelpCommand
 from notice import notice_internal
@@ -34,8 +34,17 @@ async def on_ready():
 
 @client.command()
 @commands.has_role('Manager')
+async def poll(ctx):
+    """**Send a poll for a match schedule of this week manually (manager role only)**"""
+    scrim_schedule_channel = get(ctx.guild.channels, name="scrim-schedule")
+    if scrim_schedule_channel is None:
+        scrim_schedule_channel = ctx.channel
+    await poll_internal(scrim_schedule_channel)
+
+@client.command()
+@commands.has_role('Manager')
 async def schedulepoll(ctx):
-    """**Register poll at 9am Monday (manager role only)**"""
+    """**Register a poll for match schedule of this week at 9am Monday (manager role only)**"""
     scrim_schedule_channel = get(ctx.guild.channels, name="scrim-schedule")
     if scrim_schedule_channel is None:
         scrim_schedule_channel = ctx.channel
