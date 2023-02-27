@@ -143,6 +143,9 @@ async def translate(ctx, *, text):
 @client.event
 async def on_raw_reaction_add(payload):
     message = await client.get_channel(payload.channel_id).fetch_message(payload.message_id)
+    if message.author != client.user:
+        return
+
     emoji = payload.emoji
     reaction = get(message.reactions, emoji=emoji)
 

@@ -45,7 +45,7 @@ async def poll_internal(channel_to_send):
                    "\nPlease add a reaction below for your available time." \
                    "\nFeel free to vote even if there is already 5 people voted. " \
                    "If 8 people gathered, maybe we can start a civil war." \
-                   "\n(Note that is for KST timeline)"
+                   "\n(Note that is for KST time)"
     if league_players is None:
         allowed_mentions = discord.AllowedMentions(everyone=True)
         poll_message = await channel_to_send.send(f"@everyone!\n{announcement}\n\n{poll_content}", allowed_mentions=allowed_mentions)
