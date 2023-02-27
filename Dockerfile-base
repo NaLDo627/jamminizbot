@@ -1,11 +1,11 @@
 # Use the official Python image as the base image
-FROM docker.io/hygoogi/jamminiz-base:latest
+FROM python:3.9-slim
 
 # Set the working directory inside the container
 WORKDIR /app
 
 # Copy the Python source code to the container
-COPY . .
+COPY requirements.txt .
 
-# Run the Python application when the container starts
-CMD [ "python", "main.py" ]
+# Install the Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
