@@ -6,14 +6,16 @@ from translate import translate_internal
 from help import CustomHelpCommand
 from notice import notice_internal
 import os
-import json
+import fileutil
 
 intents = discord.Intents().all()
 help_command = CustomHelpCommand()
 client = commands.Bot(command_prefix='!', intents=intents, help_command=help_command)
 
 scheduled_tasks = {}
+vote_notified_msgs = {}
 CRON_EXPRESSION_9AM_MONDAY = '0 9 * * 1'
+POLL_ACTIVATION_COUNT = 5
 
 
 @client.event
@@ -21,15 +23,15 @@ async def on_ready():
     print(f'Logged in as {client.user.name}')
     await client.change_presence(activity=discord.Game(name="!help"))
 
-    if not os.path.isfile('db/schedules.txt'):
-        return
-
-    with open('db/schedules.txt', 'r') as f:
-        keys = json.load(f)
+    keys = fileutil.read_to_obj('db/schedules.txt')
+    if keys is not None:
         for key in keys:
             scrim_schedule_channel = client.get_channel(int(key))
             task = client.loop.create_task(schedule_poll(scrim_schedule_channel, CRON_EXPRESSION_9AM_MONDAY))
             scheduled_tasks[scrim_schedule_channel.id] = task
+
+    global vote_notified_msgs
+    vote_notified_msgs = fileutil.read_to_obj('db/votes.txt')
 
 
 @client.command()
@@ -46,11 +48,7 @@ async def schedulepoll(ctx):
     task = client.loop.create_task(schedule_poll(scrim_schedule_channel, CRON_EXPRESSION_9AM_MONDAY))
     scheduled_tasks[scrim_schedule_channel.id] = task
 
-    if not os.path.exists("db"):
-        os.makedirs("db")
-    with open('db/schedules.txt', 'w') as f:
-        json.dump(list(scheduled_tasks.keys()), f)
-
+    fileutil.write_to_json('db/schedules.txt', list(scheduled_tasks.keys()))
     await ctx.send(f"Poll scheduled. I will send a poll to `#{scrim_schedule_channel.name}` channel.")
 
 
@@ -68,11 +66,7 @@ async def cancelpoll(ctx):
     scheduled_tasks[scrim_schedule_channel.id].cancel()
     del scheduled_tasks[scrim_schedule_channel.id]
 
-    if not os.path.exists("db"):
-        os.makedirs("db")
-    with open('db/schedules.txt', 'w') as f:
-        json.dump(list(scheduled_tasks.keys()), f)
-
+    fileutil.write_to_json('db/schedules.txt', list(scheduled_tasks.keys()))
     await ctx.send(f"Poll canceled. Poll will no longer sent to `#{scrim_schedule_channel.name}` channel.")
 
 
@@ -133,27 +127,75 @@ async def translate(ctx, *, text):
 
 @client.event
 async def on_raw_reaction_add(payload):
-    message = await client.get_channel(payload.channel_id).fetch_message(payload.message_id)
+    channel = client.get_channel(payload.channel_id)
+    message = await channel.fetch_message(payload.message_id)
     if message.author != client.user:
         return
 
     emoji = payload.emoji
     reaction = get(message.reactions, emoji=emoji)
+    if reaction.count < POLL_ACTIVATION_COUNT + 1:
+        return
 
-    if reaction.count >= 6:
-        message = reaction.message
-        users = [user async for user in reaction.users()]
-        users.remove(client.user)
-        user_mentions = " ".join([f"<@{user.id}>" for user in users])
+    users = [user async for user in reaction.users()]
+    users.remove(client.user)
+    user_mentions = " ".join([f"<@{user.id}>" for user in users])
 
-        poll_result = f"**{reaction.count-1}** Members are voted! : {reaction.emoji}"
-        if reaction.count == 6:
-            poll_result += "\nLet's go get a scrim."
-        elif reaction.count == 9:
-            poll_result = f"\nMaybe we can start a civil war."
+    poll_result = f"**{reaction.count-1}** Members are voted! : {reaction.emoji}"
+    if reaction.count == 6:
+        poll_result += "\nLet's go get a scrim."
+    elif reaction.count == 9:
+        poll_result = f"\nMaybe we can start a civil war."
 
-        poll_result += f"\nMembers who reacted: {user_mentions}"
-        await message.channel.send(poll_result)
+    poll_result += f"\nMembers who reacted: {user_mentions}"
+
+    key = str(payload.message_id) + str(payload.emoji.id)
+    if key not in vote_notified_msgs:
+        vote_notified_msg = await channel.send(poll_result)
+        vote_notified_msgs[key] = vote_notified_msg.id
+        fileutil.write_to_json('db/votes.txt', vote_notified_msgs)
+    else:
+        vote_notified_msg = await channel.fetch_message(vote_notified_msgs[key])
+        await vote_notified_msg.edit(content=poll_result)
+
+
+@client.event
+async def on_raw_reaction_remove(payload):
+    channel = client.get_channel(payload.channel_id)
+    message = await channel.fetch_message(payload.message_id)
+    if message.author != client.user:
+        return
+
+    emoji = payload.emoji
+    reaction = get(message.reactions, emoji=emoji)
+    if reaction.count < POLL_ACTIVATION_COUNT:
+        return
+
+    key = str(payload.message_id) + str(payload.emoji.id)
+    if key not in vote_notified_msgs:
+        return
+
+    vote_notified_msg = await channel.fetch_message(vote_notified_msgs[key])
+    if reaction.count == POLL_ACTIVATION_COUNT:
+        await vote_notified_msg.delete()
+        del vote_notified_msgs[key]
+        fileutil.write_to_json('db/votes.txt', vote_notified_msgs)
+        return
+
+    users = [user async for user in reaction.users()]
+    users.remove(client.user)
+    user_mentions = " ".join([f"<@{user.id}>" for user in users])
+
+    poll_result = f"**{reaction.count-1}** Members are voted! : {reaction.emoji}"
+    poll_result += f"\nMembers who reacted: {user_mentions}"
+    await vote_notified_msg.edit(content=poll_result)
+
+
+@client.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingRole):
+        await ctx.send("You do not have permission to execute this command.")
+
 
 discord_bot_token = os.environ.get('DISCORD_BOT_TOKEN')
 client.run(discord_bot_token)
