@@ -142,9 +142,9 @@ async def on_raw_reaction_add(payload):
     user_mentions = " ".join([f"<@{user.id}>" for user in users])
 
     poll_result = f"**{reaction.count-1}** Members are voted! : {reaction.emoji}"
-    if reaction.count == 6:
+    if reaction.count == POLL_ACTIVATION_COUNT + 1:
         poll_result += "\nLet's go get a scrim."
-    elif reaction.count == 9:
+    elif reaction.count == POLL_ACTIVATION_COUNT + 4:
         poll_result = f"\nMaybe we can start a civil war."
 
     poll_result += f"\nMembers who reacted: {user_mentions}"
