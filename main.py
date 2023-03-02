@@ -56,6 +56,35 @@ async def notice(ctx, *, announcement):
 
 
 @client.command()
+async def translatethis(ctx):
+    """**Translate the original message. It should be called in reply to original message.**
+
+    It will translate if input language is:
+     Korean => Japanese and English,
+     Japanese => Korean and English,
+     English => Japanese and Korean
+
+    *Note: It will not translate bot's message or command message(starting with prefix '!')
+    """
+    # Check if the message is a reply
+    if ctx.message.reference is None:
+        await ctx.send("It should be called in reply of another message to translate.")
+        return
+
+    # Get the original message object
+    original_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+
+    if original_message.author == client.user:
+        await ctx.send("Sorry, bot's message will not be translated.")
+        return
+    elif original_message.content.startswith("!"):
+        await ctx.send("Sorry, command message of bot will not be translated.")
+        return
+
+    await translate_internal(ctx, original_message.author, original_message.content)
+
+
+@client.command()
 async def translateabove(ctx):
     """**Translate the latest message**
 
@@ -66,8 +95,7 @@ async def translateabove(ctx):
 
     *Note: It will not translate bot's message or command message(starting with prefix '!')
     """
-    channel = ctx.channel
-    messages = [message async for message in channel.history(limit=2)]
+    messages = [message async for message in ctx.channel.history(limit=2)]
     latest_message = messages[1]
     if latest_message.author == client.user:
         await ctx.send("Sorry, bot's message will not be translated.")
