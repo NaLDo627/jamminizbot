@@ -1,73 +1,40 @@
 import discord
 from discord.ext import commands
 from discord.utils import get
-from poll import schedule_poll, poll_internal
+from poll import SchedulePoll
 from translate import translate_internal
 from help import CustomHelpCommand
 from notice import notice_internal
 import os
-import fileutil
+from reaction_handler import ReactionHandler
 
 intents = discord.Intents().all()
 help_command = CustomHelpCommand()
 client = commands.Bot(command_prefix='!', intents=intents, help_command=help_command)
 
-scheduled_tasks = {}
-vote_notified_msgs = {}
-CRON_EXPRESSION_9AM_MONDAY = '0 9 * * 1'
-POLL_ACTIVATION_COUNT = 5
+schedule_poll = SchedulePoll(client)
+reaction_handler = ReactionHandler(client)
 
 
 @client.event
 async def on_ready():
     print(f'Logged in as {client.user.name}')
     await client.change_presence(activity=discord.Game(name="!help"))
-
-    keys = fileutil.read_to_obj('db/schedules.txt')
-    if keys is not None:
-        for key in keys:
-            scrim_schedule_channel = client.get_channel(int(key))
-            task = client.loop.create_task(schedule_poll(scrim_schedule_channel, CRON_EXPRESSION_9AM_MONDAY))
-            scheduled_tasks[scrim_schedule_channel.id] = task
-
-    global vote_notified_msgs
-    vote_notified_msgs = fileutil.read_to_obj('db/votes.txt')
+    await schedule_poll.load_schedule_from_db()
 
 
 @client.command()
 @commands.has_role('Manager')
 async def schedulepoll(ctx):
     """**Register a poll for match schedule of this week at 9am Monday (manager role only)**"""
-    scrim_schedule_channel = get(ctx.guild.channels, name="scrim-schedule")
-    if scrim_schedule_channel is None:
-        scrim_schedule_channel = ctx.channel
-
-    if scrim_schedule_channel.id in scheduled_tasks:
-        await ctx.send("There is already registered schedule.")
-        return
-    task = client.loop.create_task(schedule_poll(scrim_schedule_channel, CRON_EXPRESSION_9AM_MONDAY))
-    scheduled_tasks[scrim_schedule_channel.id] = task
-
-    fileutil.write_to_json('db/schedules.txt', list(scheduled_tasks.keys()))
-    await ctx.send(f"Poll scheduled. I will send a poll to `#{scrim_schedule_channel.name}` channel.")
+    await schedule_poll.start_schedule(ctx)
 
 
 @client.command()
 @commands.has_role('Manager')
 async def cancelpoll(ctx):
     """**Unregister poll at 9am Monday (manager role only)**"""
-    scrim_schedule_channel = get(ctx.guild.channels, name="scrim-schedule")
-    if scrim_schedule_channel is None:
-        scrim_schedule_channel = ctx.channel
-    if scrim_schedule_channel.id not in scheduled_tasks:
-        await ctx.send("There is no registered schedule.")
-        return
-
-    scheduled_tasks[scrim_schedule_channel.id].cancel()
-    del scheduled_tasks[scrim_schedule_channel.id]
-
-    fileutil.write_to_json('db/schedules.txt', list(scheduled_tasks.keys()))
-    await ctx.send(f"Poll canceled. Poll will no longer sent to `#{scrim_schedule_channel.name}` channel.")
+    await schedule_poll.cancel_schedule(ctx)
 
 
 @client.command()
@@ -127,68 +94,12 @@ async def translate(ctx, *, text):
 
 @client.event
 async def on_raw_reaction_add(payload):
-    channel = client.get_channel(payload.channel_id)
-    message = await channel.fetch_message(payload.message_id)
-    if message.author != client.user:
-        return
-
-    emoji = payload.emoji
-    reaction = get(message.reactions, emoji=emoji)
-    if reaction.count < POLL_ACTIVATION_COUNT + 1:
-        return
-
-    users = [user async for user in reaction.users()]
-    users.remove(client.user)
-    user_mentions = " ".join([f"<@{user.id}>" for user in users])
-
-    poll_result = f"**{reaction.count-1}** Members are voted! : {reaction.emoji}"
-    if reaction.count == POLL_ACTIVATION_COUNT + 1:
-        poll_result += "\nLet's go get a scrim."
-    elif reaction.count == POLL_ACTIVATION_COUNT + 4:
-        poll_result = f"\nMaybe we can start a civil war."
-
-    poll_result += f"\nMembers who reacted: {user_mentions}"
-
-    key = str(payload.message_id) + str(payload.emoji.id)
-    if key not in vote_notified_msgs:
-        vote_notified_msg = await channel.send(poll_result)
-        vote_notified_msgs[key] = vote_notified_msg.id
-        fileutil.write_to_json('db/votes.txt', vote_notified_msgs)
-    else:
-        vote_notified_msg = await channel.fetch_message(vote_notified_msgs[key])
-        await vote_notified_msg.edit(content=poll_result)
+    await reaction_handler.on_raw_reaction_add(payload)
 
 
 @client.event
 async def on_raw_reaction_remove(payload):
-    channel = client.get_channel(payload.channel_id)
-    message = await channel.fetch_message(payload.message_id)
-    if message.author != client.user:
-        return
-
-    emoji = payload.emoji
-    reaction = get(message.reactions, emoji=emoji)
-    if reaction.count < POLL_ACTIVATION_COUNT:
-        return
-
-    key = str(payload.message_id) + str(payload.emoji.id)
-    if key not in vote_notified_msgs:
-        return
-
-    vote_notified_msg = await channel.fetch_message(vote_notified_msgs[key])
-    if reaction.count == POLL_ACTIVATION_COUNT:
-        await vote_notified_msg.delete()
-        del vote_notified_msgs[key]
-        fileutil.write_to_json('db/votes.txt', vote_notified_msgs)
-        return
-
-    users = [user async for user in reaction.users()]
-    users.remove(client.user)
-    user_mentions = " ".join([f"<@{user.id}>" for user in users])
-
-    poll_result = f"**{reaction.count-1}** Members are voted! : {reaction.emoji}"
-    poll_result += f"\nMembers who reacted: {user_mentions}"
-    await vote_notified_msg.edit(content=poll_result)
+    await reaction_handler.on_raw_reaction_remove(payload)
 
 
 @client.event

@@ -8,7 +8,7 @@ def write_to_json(path, content):
         json.dump(content, f)
 
 
-def read_to_obj(path):
+def read_from_file(path):
     if not os.path.isfile(path):
         return None
 
