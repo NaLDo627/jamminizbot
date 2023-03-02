@@ -1,4 +1,5 @@
 import fileutil
+import os
 from discord.utils import get
 
 
@@ -6,7 +7,7 @@ class ReactionHandler:
     def __init__(self, client):
         self.client = client
         self.vote_notified_msgs = {}
-        self.POLL_ACTIVATION_COUNT = 5
+        self.POLL_ACTIVATION_COUNT = 5 if os.environ.get('DEV') != 'T' else 1
         self.VOTES_FILE_PATH = 'db/votes.txt'
         self.vote_notified_msgs = fileutil.read_from_file(self.VOTES_FILE_PATH)
 
