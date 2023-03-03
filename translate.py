@@ -1,4 +1,5 @@
-from googletrans import Translator
+from papagotrans import Translator
+# from googletrans import Translator
 import langid
 
 

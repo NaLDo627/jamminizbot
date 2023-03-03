@@ -46,10 +46,14 @@ jobs:
           DOCKER_REPO: docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
           VERSION: ${{ github.sha }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          PAPAGO_CLIENT_ID: ${{ secrets.PAPAGO_CLIENT_ID }}
+          PAPAGO_CLIENT_SECRET: ${{ secrets.$PAPAGO_CLIENT_SECRET }}
         run: |
           # Replace secrets in docker-compose.yml file
           sed -i 's#$VERSION#'"$VERSION"'#g' $DOCKER_COMPOSE_FILE
           sed -i 's#$DISCORD_BOT_TOKEN#'"$DISCORD_BOT_TOKEN"'#g' $DOCKER_COMPOSE_FILE
+          sed -i 's#$PAPAGO_CLIENT_ID#'"$PAPAGO_CLIENT_ID"'#g' $DOCKER_COMPOSE_FILE
+          sed -i 's#$PAPAGO_CLIENT_SECRET#'"$PAPAGO_CLIENT_SECRET"'#g' $DOCKER_COMPOSE_FILE
           sed -i 's#$DOCKER_USERNAME#'"${{ secrets.DOCKER_USERNAME }}"'#g' $DOCKER_COMPOSE_FILE
           sed -i 's#$PATH_TO_REMOTE_DB#'"${{ vars.PATH_TO_REMOTE }}/db"'#g' $DOCKER_COMPOSE_FILE
           

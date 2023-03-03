@@ -6,5 +6,7 @@ services:
     restart: always
     environment:
       - DISCORD_BOT_TOKEN=$DISCORD_BOT_TOKEN
+      - PAPAGO_CLIENT_ID=$PAPAGO_CLIENT_ID
+      - PAPAGO_CLIENT_SECRET=$PAPAGO_CLIENT_SECRET
     volumes:
       - $PATH_TO_REMOTE_DB:/app/db
