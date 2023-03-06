@@ -47,7 +47,7 @@ jobs:
           VERSION: ${{ github.sha }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           PAPAGO_CLIENT_ID: ${{ secrets.PAPAGO_CLIENT_ID }}
-          PAPAGO_CLIENT_SECRET: ${{ secrets.$PAPAGO_CLIENT_SECRET }}
+          PAPAGO_CLIENT_SECRET: ${{ secrets.PAPAGO_CLIENT_SECRET }}
         run: |
           # Replace secrets in docker-compose.yml file
           sed -i 's#$VERSION#'"$VERSION"'#g' $DOCKER_COMPOSE_FILE
