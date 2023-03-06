@@ -6,10 +6,11 @@ from discord.utils import get
 class ReactionHandler:
     def __init__(self, client):
         self.client = client
-        self.vote_notified_msgs = {}
         self.POLL_ACTIVATION_COUNT = 5 if os.environ.get('DEV') != 'T' else 1
         self.VOTES_FILE_PATH = 'db/votes.txt'
         self.vote_notified_msgs = fileutil.read_from_file(self.VOTES_FILE_PATH)
+        if self.vote_notified_msgs is None:
+            self.vote_notified_msgs = {}
 
     async def on_raw_reaction_add(self, payload):
         reaction, message, channel = await self._get_datas(payload)
